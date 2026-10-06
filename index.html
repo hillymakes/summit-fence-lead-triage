@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Summit Fence Lead Triage</title>
+<meta name="description" content="An AI lead triage agent for a fencing contractor: scores urgency, categorizes, and drafts replies for human review.">
+<style>
+:root{
+  --bg:#f6f4ef;--panel:#ffffff;--ink:#1f2421;--muted:#5d6560;--line:#e2ddd2;
+  --accent:#2f6b4f;--accent-soft:#e3efe8;
+  --u5:#b3361f;--u5s:#f8e3de;--u4:#c26a12;--u4s:#fbebd8;--u3:#2f6b4f;--u3s:#e3efe8;
+  --u2:#5b5f9e;--u2s:#e7e8f5;--u1:#6b6f6c;--u1s:#ecebe7;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#151816;--panel:#1e2220;--ink:#ecebe6;--muted:#a3aaa5;--line:#323834;
+  --accent:#7cc19b;--accent-soft:#22362b;
+  --u5:#f08a74;--u5s:#3d2620;--u4:#f0a95c;--u4s:#3b2d1c;--u3:#7cc19b;--u3s:#22362b;
+  --u2:#a7abe8;--u2s:#2a2c45;--u1:#b0b4b1;--u1s:#2b2e2c;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:920px;margin:0 auto;padding:40px 16px 64px}
+.eyebrow{font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{font-size:clamp(1.8rem,4vw,2.5rem);line-height:1.15;margin:.3em 0 .4em}
+h2{font-size:1.25rem;margin:2.4em 0 .8em}
+.lede{color:var(--muted);max-width:640px;margin:0}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:28px 0 8px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;text-align:left}
+.stat b{display:block;font-size:1.5rem;line-height:1.1}
+.stat span{font-size:.78rem;color:var(--muted)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:20px 0 12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:.85rem;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.progress{font-size:.85rem;color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px}
+.card.done{opacity:.6}
+.top{display:flex;gap:12px;align-items:flex-start}
+.badge{flex:none;width:42px;height:42px;border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:1.1rem}
+.meta{flex:1;min-width:0}
+.meta h3{margin:0;font-size:1rem}
+.sub{font-size:.82rem;color:var(--muted)}
+.tag{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);margin-left:6px;font-weight:600}
+.flag{background:var(--u4s);color:var(--u4)}
+.msg{margin:12px 0 8px;padding:10px 12px;border-left:3px solid var(--line);color:var(--muted);font-style:italic}
+.reason{font-size:.9rem;margin:0 0 10px}
+.reason b{color:var(--ink)}
+textarea{width:100%;min-height:200px;font:inherit;font-size:.92rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px}
+.actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+button.act{font:inherit;font-size:.88rem;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) button.primary{color:#10140f}}
+.status{font-size:.85rem;font-weight:600;color:var(--accent);align-self:center}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.step b{display:block;margin-bottom:4px}
+.step p{margin:0;font-size:.88rem;color:var(--muted)}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:.9rem}
+td,th{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+footer{margin-top:40px;font-size:.85rem;color:var(--muted)}
+a{color:var(--accent)}
+@media (max-width:640px){.stats{grid-template-columns:repeat(3,1fr)}.steps{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Work sample · AI workflow</div>
+  <h1>Summit Fence Lead Triage</h1>
+  <p class="lede">A fencing contractor gets messy inquiries from forms, email, voicemail, and DMs. This agent reads each one, scores how urgent it is, sorts it into a category, and drafts a reply in the company's voice. A person reviews and approves every reply before it goes out.</p>
+
+  <div class="stats" id="stats"></div>
+
+  <h2>Review queue</h2>
+  <div class="toolbar">
+    <div class="chips" id="chips"></div>
+    <div class="progress" id="progress"></div>
+  </div>
+  <div id="queue"></div>
+
+  <h2>How it works</h2>
+  <div class="steps">
+    <div class="step"><b>1. Collect</b><p>Inquiries from every channel go into one list.</p></div>
+    <div class="step"><b>2. Triage</b><p>Claude applies the scoring rules below to each inquiry.</p></div>
+    <div class="step"><b>3. Draft</b><p>It writes a short, warm reply with one clear next step.</p></div>
+    <div class="step"><b>4. Review</b><p>A person approves or edits each draft. Pricing, disputes, and legal issues are flagged.</p></div>
+  </div>
+
+  <h2>Scoring rules</h2>
+  <table>
+    <tr><th>Score</th><th>What it means</th></tr>
+    <tr><td><b>5</b></td><td>Safety or active damage: broken gate, fallen fence, compromised pool barrier, pets or kids at risk.</td></tr>
+    <tr><td><b>4</b></td><td>Ready to buy with a deadline: move-in, inspection, HOA notice, event.</td></tr>
+    <tr><td><b>3</b></td><td>General quote request with no deadline.</td></tr>
+    <tr><td><b>2</b></td><td>Complaint or warranty issue that isn't a safety problem.</td></tr>
+    <tr><td><b>1</b></td><td>General question, or not a customer (vendor pitches, job seekers).</td></tr>
+  </table>
+  <p class="sub" style="margin-top:10px">Replies never quote prices, promise dates, or admit fault. Those always go to a person.</p>
+
+  <footer>
+    Demo mode: the inquiries are fictional, and the results were generated with Claude using the rules above. The repository includes the triage script that runs this live against the Claude API.
+    Built by Hillary Hubbard with Claude Code. See also the <a href="https://hillymakes.github.io/summit-fence-operating-review/">Summit Fence operating review</a>.
+  </footer>
+</div>
+<script>
+const DATA = [{"id": 1, "name": "Dana Whitfield", "channel": "Website form", "received": "Mon 7:12 AM", "message": "hi our back gate wont latch anymore since the storm sat night, the post is leaning bad. we have two dogs and I had to keep them inside all weekend. can someone come look asap??", "urgency": 5, "category": "Safety / Repair", "reason": "Storm damage left a gate that won't latch, and two dogs could get out.", "needs_human": false, "reply": "Hi Dana,\n\nThanks for reaching out, and I'm sorry about the storm damage. A leaning post and a gate that won't latch is exactly the kind of thing we want to get to quickly, especially with two dogs at home.\n\nCould you reply with a couple of photos of the gate and post, and a good number to reach you? We'll call today to set up a time to come take a look.\n\nIn the meantime, a bungee cord or zip ties on the latch side can help keep the gate shut.\n\nThe Summit Fence team"}, {"id": 2, "name": "Marcus Lee", "channel": "Email", "received": "Mon 8:40 AM", "message": "A section of your fence from last year fell onto my neighbor's car this morning. Nobody hurt but they're upset and asking who pays. Need someone out here and need to know what happens now.", "urgency": 5, "category": "Safety / Repair", "reason": "Fallen fence with property damage and a possible liability question.", "needs_human": true, "reply": "Hi Marcus,\n\nThank you for letting us know right away, and I'm glad nobody was hurt. A section of fence coming down onto your neighbor's car is something we want to look at in person as soon as possible.\n\nSomeone from our team will call you today to set up a visit and talk through next steps. If you can, please take a few photos of the fallen section and the posts before anything is moved.\n\nThe Summit Fence team"}, {"id": 3, "name": "Priya Raman", "channel": "Website form", "received": "Mon 9:05 AM", "message": "Our pool fence has a gap at the bottom where the ground washed out. Pool inspection is next Friday. Can you fix before then?", "urgency": 5, "category": "Safety / Repair", "reason": "Compromised pool barrier with a safety risk and an inspection in a week.", "needs_human": false, "reply": "Hi Priya,\n\nThanks for reaching out. A gap under a pool fence is a safety issue, so we'll make this a priority, and we know you've got an inspection next Friday.\n\nCould you send a photo of the gap and let us know a good time to call? We'll set up a visit to see what it needs and talk about timing.\n\nThe Summit Fence team"}, {"id": 4, "name": "Jordan Ellis", "channel": "Phone message (transcribed)", "received": "Mon 10:22 AM", "message": "Yeah hi, we close on a house November 14th and we're bringing home a puppy that weekend. Need a 6 foot privacy fence around the backyard, about 180 feet. Want to get on the schedule.", "urgency": 4, "category": "Quote (Deadline)", "reason": "Clear project, about 180 feet of privacy fence, with a firm mid-November deadline.", "needs_human": false, "reply": "Hi Jordan,\n\nCongratulations on the new house, and the new puppy! A 6-foot privacy fence around about 180 feet of backyard is right in our wheelhouse, and we'd love to help you get it done before your mid-November move-in.\n\nWhat's the best number and time to reach you? We'll set up a quick visit to measure and walk you through options.\n\nThe Summit Fence team"}, {"id": 5, "name": "Sandra Okafor", "channel": "Email", "received": "Mon 11:15 AM", "message": "I manage a small office park. We need the dumpster enclosure replaced before our lease renewal walkthrough on the 30th. Can you send a quote and availability?", "urgency": 4, "category": "Quote (Deadline)", "reason": "Commercial project with a set walkthrough date at the end of the month.", "needs_human": true, "reply": "Hi Sandra,\n\nThanks for thinking of us for the dumpster enclosure. We understand you need it done before your walkthrough on the 30th.\n\nThe best next step is a quick site visit so we can measure and see what's there now. Could you send a few photos and a couple of times that work this week? We'll follow up with a quote after we've taken a look.\n\nThe Summit Fence team"}, {"id": 6, "name": "Tom Brandt", "channel": "Website form", "received": "Mon 12:02 PM", "message": "Our HOA says our fence has to be replaced by end of next month or we get fined. Cedar, about 120 ft. Please call me.", "urgency": 4, "category": "Quote (Deadline)", "reason": "HOA deadline next month on a defined cedar replacement project.", "needs_human": false, "reply": "Hi Tom,\n\nThanks for reaching out. HOA deadlines can be stressful, and we're happy to help you get your cedar fence replaced in time.\n\nWe'll give you a call to set up a visit to measure your roughly 120 feet. If your HOA has any rules about height, style, or color, please send those over so we can plan around them.\n\nThe Summit Fence team"}, {"id": 7, "name": "Alicia Gomez", "channel": "Website form", "received": "Mon 1:30 PM", "message": "Thinking about replacing our chain link with something nicer, maybe wood or vinyl. Just starting to look, what would you recommend?", "urgency": 3, "category": "Quote", "reason": "Real project in the early research stage with no deadline.", "needs_human": false, "reply": "Hi Alicia,\n\nThanks for reaching out! Swapping chain link for wood or vinyl makes a big difference in how a yard looks and feels. Wood has a warmer, classic look, and vinyl takes less upkeep over the years.\n\nWhenever you're ready, we can come out, measure, and walk you through both so you can compare side by side. Just reply with a good time to call.\n\nThe Summit Fence team"}, {"id": 8, "name": "Ben Carter", "channel": "Email", "received": "Mon 2:10 PM", "message": "How much for a 4 ft picket fence across the front yard? Roughly 60 feet.", "urgency": 3, "category": "Quote", "reason": "Straightforward quote request for a small front-yard picket fence, no deadline.", "needs_human": true, "reply": "Hi Ben,\n\nThanks for reaching out! A 4-foot picket fence across about 60 feet of front yard sounds like a great project.\n\nPrice depends on the material, the gate, and your ground, so the best way to get you an accurate number is a quick visit to measure. What's a good number and time to reach you?\n\nThe Summit Fence team"}, {"id": 9, "name": "Grace Huang", "channel": "Instagram DM", "received": "Mon 3:45 PM", "message": "love your horizontal slat fences!! do you do those in black? maybe for spring", "urgency": 3, "category": "Quote", "reason": "Interested in a specific style with a loose spring timeline.", "needs_human": false, "reply": "Hi Grace,\n\nThank you so much! Horizontal slat fences are some of our favorites to build. Black can look really sharp, and we're happy to talk through options for finishes.\n\nWhenever you're ready to start planning for spring, just send us your address and a good time to chat, and we'll set up a visit.\n\nThe Summit Fence team"}, {"id": 10, "name": "Robert Kim", "channel": "Email", "received": "Mon 4:20 PM", "message": "You installed our fence in June and a couple boards are already warping. Not happy about it. Is this covered?", "urgency": 2, "category": "Warranty / Complaint", "reason": "Warranty question about warping boards, frustrating but not a safety issue.", "needs_human": true, "reply": "Hi Robert,\n\nThanks for letting us know, and I'm sorry the boards are warping already. That's not what you should have to deal with a few months after an install.\n\nCould you send a few photos of the boards and the address where we did the work? Someone from our team will look into it and get back to you about next steps.\n\nThe Summit Fence team"}, {"id": 11, "name": "Linda Park", "channel": "Website form", "received": "Tue 8:15 AM", "message": "The crew left some scrap wood and screws in our side yard after the install. Can someone come pick it up?", "urgency": 2, "category": "Warranty / Complaint", "reason": "Cleanup issue after an install, worth fixing quickly but not urgent.", "needs_human": false, "reply": "Hi Linda,\n\nThanks for telling us, and I'm sorry the crew left that behind. That's not how we want to leave a yard.\n\nWe'll get someone out to pick it up. Could you reply with your address and a day that works? And please keep pets and kids away from the screws until we get there.\n\nThe Summit Fence team"}, {"id": 12, "name": "Kevin Moore", "channel": "Email", "received": "Tue 9:00 AM", "message": "Do you guys install fences in Round Rock or just Austin?", "urgency": 1, "category": "Question", "reason": "Simple service-area question with no project details yet.", "needs_human": false, "reply": "Hi Kevin,\n\nThanks for asking! We work all over the Austin area. If you send us your address, we'll confirm we can get to you and set up a time to talk about your fence.\n\nThe Summit Fence team"}, {"id": 13, "name": "Erin Walsh", "channel": "Website form", "received": "Tue 9:40 AM", "message": "What's the difference between pressure treated and cedar? Which lasts longer?", "urgency": 1, "category": "Question", "reason": "General product question, a possible future lead.", "needs_human": false, "reply": "Hi Erin,\n\nGreat question! Cedar naturally resists rot and bugs and has a warmer look. Pressure-treated pine is chemically treated to hold up and usually costs less. Both can last a long time with good care.\n\nIf you're thinking about a project, we're happy to come out and help you pick what fits your yard and budget.\n\nThe Summit Fence team"}, {"id": 14, "name": "SEO Growth Partners", "channel": "Email", "received": "Tue 10:05 AM", "message": "We can get Summit Fence to #1 on Google in 30 days guaranteed! Reply for a free audit.", "urgency": 1, "category": "Not a Lead", "reason": "Marketing solicitation, not a customer.", "needs_human": false, "reply": "No reply needed. Archive."}, {"id": 15, "name": "Luis Ortega", "channel": "Email", "received": "Tue 10:30 AM", "message": "Are you hiring installers? I have 5 years experience with fencing and decks.", "urgency": 1, "category": "Not a Lead", "reason": "Job inquiry, so it goes to hiring rather than sales.", "needs_human": false, "reply": "Hi Luis,\n\nThanks for your interest in working with us! Please send your experience and a good way to reach you, and we'll pass it along to the person who handles hiring.\n\nThe Summit Fence team"}];
+const COLORS = {5:["--u5","--u5s"],4:["--u4","--u4s"],3:["--u3","--u3s"],2:["--u2","--u2s"],1:["--u1","--u1s"]};
+const LABELS = {5:"Safety",4:"Deadline",3:"Quote",2:"Complaint",1:"Low"};
+const state = {filter:0, status:{}};
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const items = [...DATA].sort((a,b)=>b.urgency-a.urgency || a.id-b.id);
+
+function renderStats(){
+  document.getElementById("stats").innerHTML = [5,4,3,2,1].map(u=>{
+    const n = items.filter(i=>i.urgency===u).length;
+    const [c,s] = COLORS[u];
+    return `<div class="stat" style="background:var(${s});border-color:transparent"><b style="color:var(${c})">${n}</b><span>${u} · ${LABELS[u]}</span></div>`;
+  }).join("");
+}
+function renderChips(){
+  const opts = [[0,"All"],[5,"Safety"],[4,"Deadline"],[3,"Quote"],[2,"Complaint"],[1,"Low"]];
+  const el = document.getElementById("chips");
+  el.innerHTML = opts.map(([v,l])=>`<button class="chip" data-v="${v}" aria-pressed="${state.filter===v}">${l}</button>`).join("");
+  el.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{state.filter=+b.dataset.v;renderChips();renderQueue();});
+}
+function renderQueue(){
+  const list = items.filter(i=>!state.filter || i.urgency===state.filter);
+  document.getElementById("queue").innerHTML = list.map(i=>{
+    const [c,s] = COLORS[i.urgency];
+    const st = state.status[i.id];
+    return `<article class="card ${st?"done":""}" data-id="${i.id}">
+      <div class="top">
+        <div class="badge" style="background:var(${s});color:var(${c})" aria-label="Urgency ${i.urgency}">${i.urgency}</div>
+        <div class="meta">
+          <h3>${esc(i.name)} <span class="tag">${esc(i.category)}</span>${i.needs_human?'<span class="tag flag">Needs a person</span>':""}</h3>
+          <div class="sub">${esc(i.channel)} · ${esc(i.received)}</div>
+        </div>
+      </div>
+      <div class="msg">"${esc(i.message)}"</div>
+      <p class="reason"><b>Why:</b> ${esc(i.reason)}</p>
+      <textarea aria-label="Draft reply to ${esc(i.name)}">${esc(i.reply)}</textarea>
+      <div class="actions">
+        ${st?`<span class="status">${st}</span><button class="act" data-a="undo">Undo</button>`:
+        `<button class="act primary" data-a="Approved">Approve</button><button class="act" data-a="Sent to a person">Send to a person</button>`}
+      </div>
+    </article>`;
+  }).join("");
+  document.querySelectorAll(".card button").forEach(b=>b.onclick=()=>{
+    const id = +b.closest(".card").dataset.id;
+    if(b.dataset.a==="undo") delete state.status[id]; else state.status[id]=b.dataset.a;
+    renderQueue();
+  });
+  const done = Object.keys(state.status).length;
+  document.getElementById("progress").textContent = `${done} of ${items.length} reviewed`;
+}
+renderStats();renderChips();renderQueue();
+</script>
+</body>
+</html>
